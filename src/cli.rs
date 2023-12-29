@@ -99,7 +99,10 @@ impl ScorchProjectCLI {
             module_paths: Vec::new(),
             config: HashMap::new(),
         };
+        
         proj.save(format!("{}/{}{}", self.root, name, FILE_EXTENSION).as_str()).unwrap();
+        
+        println!("project created at {}/{}{}", self.root, name, FILE_EXTENSION);
     }
 
     pub fn try_run_current_project(&mut self) -> () {
@@ -108,21 +111,40 @@ impl ScorchProjectCLI {
             println!("main: {}", proj.main);
             println!("modules: {:?}", proj.module_paths);
             println!("config: {:?}", proj.config);
-    
             let mut module_files = Vec::new();
-    
             for module_path in &proj.module_paths {
-                let mut module_file = std::fs::File::open(format!("{}/{}", self.root, module_path)).unwrap();
-                let mut module_buffer = String::new();
-                module_file.read_to_string(&mut module_buffer).unwrap();
-                module_files.push(module_buffer);
+                match std::fs::File::open(format!("{}/{}", self.root, module_path)) {
+                    Ok(mut module_file) => {
+                        let mut module_buffer = String::new();
+                        match module_file.read_to_string(&mut module_buffer) {
+                            Ok(_) => module_files.push(module_buffer),
+                            Err(e) => {
+                                println!("Error reading module file: {:#?}", e);
+                                return;
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        println!("Error opening module file: {:#?}", e);
+                        return;
+                    }
+                }
             }
     
-            let mut main_file = std::fs::File::open(format!("{}/{}", self.root, proj.main)).unwrap();
+            let Ok(mut main_file) = std::fs::File::open(format!("{}/{}", self.root, proj.main)) else {
+                println!("Error opening main file: {:#?}", proj.main);
+                return;
+            };
+            
+            
             let mut main_buffer = String::new();
-            main_file.read_to_string(&mut main_buffer).unwrap();
+            let Ok(_) = main_file.read_to_string(&mut main_buffer) else {
+                println!("Error reading main file: {:#?}", proj.main);
+                return;
+            };
     
             let concatenated_code = format!("{}\n{}", module_files.join("\n"), main_buffer);
+            
             let result = scorch_lang::run(&concatenated_code);
     
             let Ok(return_value) = result else {
@@ -135,11 +157,13 @@ impl ScorchProjectCLI {
         } 
         else {
             self.try_load_project_from_dir();
+            self.try_run_current_project();
             println!("No project loaded.\nsearching current dir & running first found .scproj\noptionally, use 'l' command to load a project");
         }
     }
     
     pub fn try_load_project_from_dir(&mut self) {
+        
         // Search the root directory for .scproj files
         let entries = std::fs::read_dir(&self.root).unwrap();
                         

@@ -6,7 +6,6 @@
 
 > 'scc' installation just adds an alias to the linux terminal for the cli tool.
 
-
 ``` bash
 chmod +x INSTALL.sh
 ./INSTALL.sh

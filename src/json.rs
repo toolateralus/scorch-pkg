@@ -50,6 +50,8 @@ impl ScorchProject {
 
 #[cfg(test)]
 mod tests_json {
+    use std::fs;
+
     use super::*;
     #[test]
     fn test_save_and_load() {
@@ -70,6 +72,9 @@ mod tests_json {
         assert_eq!(project.main, loaded_project.main);
         assert_eq!(project.module_paths, loaded_project.module_paths);
         assert_eq!(project.config, loaded_project.config);
+        
+        
+        fs::remove_file(path.as_str());
     }
 }
 

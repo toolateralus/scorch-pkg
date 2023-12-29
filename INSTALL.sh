@@ -17,8 +17,10 @@ if ! command -v cargo &> /dev/null; then
     source $HOME/.cargo/env
 fi
 
-if ! grep -q "alias scc=\"cd $current_dir && cargo run --release --quiet\"" ~/.bashrc; then
-    echo "alias scc=\"cd $current_dir && cargo run --release --quiet\"" >> ~/.bashrc
+cmd="alias scc='(cd $current_dir; cargo build --release); $current_dir/target/release/scorch-pkg'"
+
+if ! grep -q "$cmd" ~/.bashrc; then
+    echo "$cmd" >> ~/.bashrc
 fi
 
 source ~/.bashrc

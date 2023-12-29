@@ -1,0 +1,11 @@
+{
+  "name": "ScorchTestProject",
+  "main": "main.scorch",
+  "module_paths": [
+    "module1.scorch",
+    "module2.scorch"
+  ],
+  "config": {
+    "libstd": "true"
+  }
+}

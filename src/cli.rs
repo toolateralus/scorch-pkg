@@ -3,7 +3,6 @@ use std::{io::Read, ops::ControlFlow, fs::File};
 use crate::{json::{ScorchProject, FILE_EXTENSION}, git::{try_cache_repo, force_update_repo}};
 use colored::Colorize;
 use indexmap::IndexMap;
-use scorch_lang::{standard_functions::clear_screen, types::Value};
 use std::fs;
 use std::path::Path;
 pub struct ScorchProjectCLI {
@@ -38,10 +37,14 @@ impl ScorchProjectCLI {
                 }
         
                 for repos in &self.project.as_ref().unwrap().modules {
+                    
+                    
                     let id = repos.id.clone();
                     let url = repos.url.clone();
                     let branch = repos.branch.clone();
             
+                    println!("updating git dependency: \nmodule: {}\nfrom repo: {}\non branch {}", id.clone(), url, branch);
+                    
                     let result = force_update_repo(&id, &url, &branch);
             
                     let Ok(repo_path) = result else {
@@ -53,7 +56,6 @@ impl ScorchProjectCLI {
             }
             "help" => {
                 println!("{}", "available commands:");
-                println!("{}", "## <man>               :        A list of built-in functions                             ##".bright_green());
                 println!("{}", "## <dir>               :        print the current directory.                             ##".bright_green());
                 println!("{}", "## <l> 'path'          :        load a project from a file path.                         ##".bright_green());
                 println!("{}", "## <r>                 :        run the currently loaded project.                        ##".bright_green());

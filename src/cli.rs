@@ -1,6 +1,6 @@
 use std::{io::Read, ops::ControlFlow, fs::File};
 
-use crate::{json::{ScorchProject, FILE_EXTENSION}, git::cache_repo};
+use crate::{json::{ScorchProject, FILE_EXTENSION}, git::{try_cache_repo, force_update_repo}};
 use colored::Colorize;
 use indexmap::IndexMap;
 use std::fs;
@@ -21,6 +21,21 @@ impl ScorchProjectCLI {
             let input_vec: Vec<&str> = input.trim().split(" ").collect();
             
             match input_vec[0] {
+                "pull" => {
+                    for repos in &self.project.as_ref().unwrap().modules {
+                        let id = repos.id.clone();
+                        let url = repos.url.clone();
+                        let branch = repos.branch.clone();
+                        
+                        let result = force_update_repo(&id, &url, &branch);
+                        
+                        let Ok(repo_path) = result else {
+                            println!("Error caching repo: {:#?}", result);
+                            return Ok(());
+                        };
+                        println!("successfully updated repo {} from {} , locally at {}", id.clone(), url, repo_path)                        
+                    }
+                }
                 "help" => {
                     println!("{}", "available commands:");
                     println!("{}", "## <man>               :        A list of built-in functions                             ##".bright_green());
@@ -150,7 +165,7 @@ impl ScorchProjectCLI {
                 let url = module.url.clone();
                 let branch = module.branch.clone();
                 
-                let result = cache_repo(&id, &url, &branch);
+                let result = try_cache_repo(&id, &url, &branch);
                 
                 let Ok(repo_path) = result else {
                     println!("Error caching repo: {:#?}", result);

@@ -1,5 +1,5 @@
 use git2::build::CheckoutBuilder;
-use std::env;
+use std::{env, path::Path};
 use git2::{Repository, Error, ObjectType};
 use std::path::PathBuf;
 
@@ -16,15 +16,21 @@ pub fn get_git_cache_path() -> PathBuf {
     path
 }
 
-pub fn cache_repo(id: &str, url: &str, branch: &str) -> Result<String, Error> {
+pub fn try_cache_repo(id: &str, url: &str, branch: &str) -> Result<String, Error> {
     let repo_dir = get_repo_directory(id);
-    
-    // todo: add some way to tell if this has been done or not to save some time on project load.
+    if Path::new(&repo_dir).exists() {
+        return Ok(repo_dir);
+    }
+    force_update_repo(&id.to_string(), url, branch)
+}
+
+pub fn force_update_repo(id: &String, url: &str, branch: &str) -> Result<String, Error> {
+    let repo_dir = get_repo_directory(id);
     let repo = open_or_clone_repo(&repo_dir, url)?;
     update_repo_if_needed(&repo, branch)?;
     checkout_branch(&repo, branch)?;
     
-    Ok(repo_dir)
+    Ok(repo_dir.clone())
 }
 
 pub fn get_repo_directory(id: &str) -> String {
@@ -81,7 +87,7 @@ mod test {
         let url = "https://github.com/toolateralus/scorch-doc.git";
         let branch = "main";
         
-        let result = super::cache_repo(id, url, branch);
+        let result = super::try_cache_repo(id, url, branch);
         
         match &result {
             Ok(path) => {

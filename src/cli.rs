@@ -1,7 +1,9 @@
 use std::{io::Read, collections::HashMap, ops::ControlFlow};
 
-use crate::json::{ScorchProject, FILE_EXTENSION};
+use crate::{json::{ScorchProject, FILE_EXTENSION}, git::cache_repo};
 use colored::Colorize;
+use std::fs;
+use std::path::Path;
 pub struct ScorchProjectCLI {
     pub root : String,
     pub project: Option<Box<ScorchProject>>,
@@ -58,8 +60,6 @@ impl ScorchProjectCLI {
         }
     }
     
-    
-    
     fn load_project(&mut self, input_vec: Vec<&str>) -> ControlFlow<()> {
         if input_vec.len() > 1 {
             let file_path = input_vec[1].to_string();
@@ -112,13 +112,55 @@ impl ScorchProjectCLI {
         
         println!("project created at {}/{}{}", self.root, name, FILE_EXTENSION);
     }
+    
+    fn load_scorch_files(repo_path: &str) -> Vec<String> {
+        let mut scorch_files = Vec::new();
+        
+        if let Ok(entries) = fs::read_dir(repo_path) {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    if path.is_file() && path.extension().map(|ext| ext == "scorch").unwrap_or(false) {
+                        if let Ok(file_content) = fs::read_to_string(&path) {
+                            scorch_files.push(file_content);
+                        }
+                    } else if path.is_dir() {
+                        let files = Self::load_scorch_files(path.to_str().unwrap());
+                        scorch_files.extend(files);
+                    }
+                }
+            }
+        }
 
+        scorch_files
+    }
+    
     pub fn try_run_current_project(&mut self) -> () {
         if let Some(proj) = &self.project {
             println!("running project: {}", proj.name);
             println!("main: {}", proj.main);
             println!("included files: {:?}", proj.includes);
             println!("git modules: {:?}", proj.modules);
+            
+            let mut module_cache = HashMap::new();
+            
+            for module in &proj.modules {
+                let id = module.id.clone();
+                let url = module.url.clone();
+                let branch = module.branch.clone();
+                
+                let result = cache_repo(&id, &url, &branch);
+                
+                let Ok(repo_path) = result else {
+                    println!("Error caching repo: {:#?}", result);
+                    return;
+                };
+                
+                let scorch_files = Self::load_scorch_files(&repo_path);
+                
+                module_cache.insert(id, scorch_files);
+            }
+            
             let mut module_files = Vec::new();
             for module_path in &proj.includes {
                 match std::fs::File::open(format!("{}/{}", self.root, module_path)) {

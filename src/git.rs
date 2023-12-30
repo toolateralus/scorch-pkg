@@ -1,11 +1,10 @@
 use git2::build::CheckoutBuilder;
 use std::env;
 use git2::{Repository, Error, ObjectType};
-use std::path::{Path, PathBuf};
-use std::fs;
+use std::path::PathBuf;
 
 #[cfg(target_os = "windows")]
-pub const GIT_CACHE: &str = "appdata/scorch/git_cache";
+pub const GIT_CACHE: &str = "appdata/roaming/scorch/git_cache";
 
 #[cfg(target_os = "linux")]
 pub const GIT_CACHE: &str = ".config/scorch/git_cache";
@@ -17,19 +16,45 @@ pub fn get_git_cache_path() -> PathBuf {
     path
 }
 
+pub fn cache_repo(id: &str, url: &str, branch: &str) -> Result<String, Error> {
+    let repo_dir = get_repo_directory(id);
+    
+    // todo: add some way to tell if this has been done or not to save some time on project load.
+    let repo = open_or_clone_repo(&repo_dir, url)?;
+    update_repo_if_needed(&repo, branch)?;
+    checkout_branch(&repo, branch)?;
+    
+    Ok(repo_dir)
+}
 
-pub fn cache_repo(id: &str, url: &str, branch: &str, cache_dir: &Path) -> Result<(), Error> {
-    let repo_dir = format!("{}/{}", cache_dir.display(), id);
-    
-    // If the directory exists, delete it
-    if Path::new(&repo_dir).exists() {
-        fs::remove_dir_all(&repo_dir)
-            .map_err(|err| Error::from_str(&format!("Failed to remove existing directory: {}", err)))?;
+pub fn get_repo_directory(id: &str) -> String {
+    let cache_dir = get_git_cache_path();
+    format!("{}/{}", cache_dir.display(), id)
+}
+
+pub fn open_or_clone_repo(repo_dir: &str, url: &str) -> Result<Repository, Error> {
+    match Repository::open(repo_dir) {
+        Ok(repo) => Ok(repo),
+        Err(_) => Repository::clone(url, repo_dir)
+            .map_err(|err| Error::from_str(&format!("Failed to clone repository: {}", err))),
     }
+}
+
+pub fn update_repo_if_needed(repo: &Repository, branch: &str) -> Result<(), Error> {
+    repo.find_remote("origin")?
+        .fetch(&[branch], None, None)?;
     
-    let repo = Repository::clone(url, &repo_dir)
-        .map_err(|err| Error::from_str(&format!("Failed to clone repository: {}", err)))?;
-    
+    let local_commit = repo.revparse_single("HEAD")?.id();
+    let remote_commit = repo.revparse_single(&format!("origin/{}", branch))?.id();
+    if local_commit != remote_commit {
+        let object = repo.revparse_single(&format!("origin/{}", branch))?;
+        repo.reset(&object, git2::ResetType::Hard, None)?;
+    }
+
+    Ok(())
+}
+
+pub fn checkout_branch(repo: &Repository, branch: &str) -> Result<(), Error> {
     let obj = repo.revparse_single(branch)
         .map_err(|err| Error::from_str(&format!("Failed to parse branch: {}", err)))?;
     
@@ -49,19 +74,24 @@ pub fn cache_repo(id: &str, url: &str, branch: &str, cache_dir: &Path) -> Result
 }
 
 mod test {
+    use std::{path::Path, fs};
     use super::*;
     #[test]
-    fn test_cache_repo() {
-        let cache_dir = get_git_cache_path();
-        
+    pub fn test_cache_repo() {
         let id = "scorch-doc";
         let url = "https://github.com/toolateralus/scorch-doc.git";
         let branch = "main";
         
-        let result = cache_repo(id, url, branch, &cache_dir);
+        let result = cache_repo(id, url, branch);
         
-        dbg!(&result);
-        
-        assert!(result.is_ok(), "git repo cache test failed,");
+        match &result {
+            Ok(path) => {
+                let path = Path::new(path);
+                assert!(path.exists(), "git repo cache test failed, path does not exist");
+                assert!(path.is_dir(), "git repo cache test failed, path is not a directory");
+                fs::remove_dir_all(path).expect("git repo cache test failed, failed to remove directory");
+            },
+            Err(_) => {},
+        }
     }
 }

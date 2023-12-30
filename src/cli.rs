@@ -1,7 +1,7 @@
-use std::{io::Read, collections::HashMap, ops::ControlFlow};
+use std::{io::Read, collections::HashMap, ops::ControlFlow, os::unix::io, process::Command};
 
 use crate::json::{ScorchProject, FILE_EXTENSION};
-
+use colored::{ColoredString, Colorize};
 pub struct ScorchProjectCLI {
     pub root : String,
     pub project: Option<Box<ScorchProject>>,
@@ -19,12 +19,13 @@ impl ScorchProjectCLI {
             
             match input_vec[0] {
                 "help" => {
-                    println!("available commands:");
-                    println!("dir : print the current directory.");
-                    println!("l <project-path> : load a project from a file path.");
-                    println!("r : run the currently loaded project.");
-                    println!("create : create a new project at 'dir/project-name.scproj'.'");
-                    println!("exit : exit the cli.");
+                    println!("{}", "available commands:");
+                    println!("{}", "## <man>               :        A list of built-in functions                             ##".bright_green());
+                    println!("{}", "## <dir>               :        print the current directory.                             ##".bright_green());
+                    println!("{}", "## <l> 'path'          :        load a project from a file path.                         ##".bright_green());
+                    println!("{}", "## <r>                 :        run the currently loaded project.                        ##".bright_green());
+                    println!("{}", "## <create>            :        create a new project at 'dir/project-name.scproj'.'      ##".bright_green());
+                    println!("{}", "## <exit>              :        exit the cli.                                            ##".bright_green());
                 },
                 "l" => {
                     if let ControlFlow::Break(_) = self.load_project(input_vec) {
@@ -35,7 +36,9 @@ impl ScorchProjectCLI {
                     self.try_run_current_project();
                 }
                 "dir" => {
-                    println!("current dir : {}\n preview package name : {}/{}", self.root, self.root, "my_project.scproj");
+                    
+                    let string = format!("current dir : {}\n preview package name : {}/{}", self.root, self.root, "my_project.scproj");
+                    println!("{}", string.green());
                 }
                 "create" => {
                     
@@ -44,6 +47,12 @@ impl ScorchProjectCLI {
                 "exit" => {
                     return Ok(());
                 }
+                "clear" => {
+                    Self::clear_terminal();                    
+                }
+                "man" => {
+                    scorch_lang::standard_functions::print_builtin_fns();
+                }
                 _ => {
                     println!("Unknown command: {}", input);
                     continue;
@@ -51,7 +60,15 @@ impl ScorchProjectCLI {
             }
         }
     }
-
+    
+    fn clear_terminal() {
+        if cfg!(target_os = "windows") {
+            let _ = Command::new("cmd").arg("/c").arg("cls").status();
+        } else {
+            let _ = Command::new("clear").status();
+        }
+    }
+    
     fn load_project(&mut self, input_vec: Vec<&str>) -> ControlFlow<()> {
         if input_vec.len() > 1 {
             let file_path = input_vec[1].to_string();

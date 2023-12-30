@@ -15,7 +15,6 @@ fn main() {
         return;
     }
     
-    
     let mut cli = cli::ScorchProjectCLI::new();
     
     cli.run_cli().unwrap();    

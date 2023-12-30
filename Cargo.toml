@@ -9,4 +9,5 @@ serde_json = "1.0"
 
 scorch-lang ={ git = "https://github.com/toolateralus/scorch-interpreter", branch = "lib"}
 colored = "2.1.0"
+git2 = "0.18.1"
 

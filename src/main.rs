@@ -1,5 +1,6 @@
 mod json; 
 mod cli;
+mod git;
 
 fn main() {
     

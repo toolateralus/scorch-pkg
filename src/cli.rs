@@ -1,4 +1,4 @@
-use std::{io::Read, collections::HashMap, ops::ControlFlow, process::Command};
+use std::{io::Read, collections::HashMap, ops::ControlFlow};
 
 use crate::json::{ScorchProject, FILE_EXTENSION};
 use colored::Colorize;
@@ -48,10 +48,7 @@ impl ScorchProjectCLI {
                     return Ok(());
                 }
                 "clear" => {
-                    Self::clear_terminal();                    
-                }
-                "man" => {
-                    scorch_lang::standard_functions::print_builtin_fns();
+                    
                 }
                 _ => {
                     println!("Unknown command: {}", input);
@@ -61,13 +58,7 @@ impl ScorchProjectCLI {
         }
     }
     
-    fn clear_terminal() {
-        if cfg!(target_os = "windows") {
-            let _ = Command::new("cmd").arg("/c").arg("cls").status();
-        } else {
-            let _ = Command::new("clear").status();
-        }
-    }
+    
     
     fn load_project(&mut self, input_vec: Vec<&str>) -> ControlFlow<()> {
         if input_vec.len() > 1 {

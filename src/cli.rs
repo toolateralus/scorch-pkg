@@ -104,8 +104,8 @@ impl ScorchProjectCLI {
         let proj = ScorchProject {
             name: name.clone(),
             main,
-            module_paths: Vec::new(),
-            config: HashMap::new(),
+            includes: Vec::new(),
+            modules: Vec::new(),
         };
         
         proj.save(format!("{}/{}{}", self.root, name, FILE_EXTENSION).as_str()).unwrap();
@@ -117,10 +117,10 @@ impl ScorchProjectCLI {
         if let Some(proj) = &self.project {
             println!("running project: {}", proj.name);
             println!("main: {}", proj.main);
-            println!("modules: {:?}", proj.module_paths);
-            println!("config: {:?}", proj.config);
+            println!("included files: {:?}", proj.includes);
+            println!("git modules: {:?}", proj.modules);
             let mut module_files = Vec::new();
-            for module_path in &proj.module_paths {
+            for module_path in &proj.includes {
                 match std::fs::File::open(format!("{}/{}", self.root, module_path)) {
                     Ok(mut module_file) => {
                         let mut module_buffer = String::new();

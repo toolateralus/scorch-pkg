@@ -1,5 +1,3 @@
-
-use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write, ErrorKind, Error};
 
@@ -7,12 +5,19 @@ use serde::{Deserialize, Serialize};
 
 pub const FILE_EXTENSION : &str = ".scproj";
 
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Module {
+    pub id: String,
+    pub url: String,
+    pub branch : String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScorchProject {
     pub name: String,
     pub main: String,
-    pub module_paths: Vec<String>,
-    pub config: HashMap<String, String>,
+    pub includes: Vec<String>,
+    pub modules: Vec<Module>,
 }
 
 impl ScorchProject {
@@ -58,8 +63,8 @@ mod tests_json {
         let project = ScorchProject {
             name: "ScorchTestProject".to_string(),
             main: "main.scorch".to_string(),
-            module_paths: vec!["module1.scorch".to_string(), "module2.scorch".to_string()],
-            config: HashMap::from([("libstd".to_string(), "true".to_string())]),
+            includes: vec!["module1.scorch".to_string(), "module2.scorch".to_string()],
+            modules: vec![],
         };
         
         let path = format!("test_project{}", FILE_EXTENSION);
@@ -70,8 +75,8 @@ mod tests_json {
         
         assert_eq!(project.name, loaded_project.name);
         assert_eq!(project.main, loaded_project.main);
-        assert_eq!(project.module_paths, loaded_project.module_paths);
-        assert_eq!(project.config, loaded_project.config);
+        assert_eq!(project.includes, loaded_project.includes);
+        assert_eq!(project.modules, loaded_project.modules);
         
         let Ok(_) =fs::remove_file(path.as_str()) else {
             panic!("failed to remove test project file");

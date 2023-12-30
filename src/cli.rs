@@ -3,6 +3,7 @@ use std::{io::Read, ops::ControlFlow, fs::File};
 use crate::{json::{ScorchProject, FILE_EXTENSION}, git::{try_cache_repo, force_update_repo}};
 use colored::Colorize;
 use indexmap::IndexMap;
+use scorch_lang::{standard_functions::clear_screen, types::Value};
 use std::fs;
 use std::path::Path;
 pub struct ScorchProjectCLI {
@@ -10,7 +11,7 @@ pub struct ScorchProjectCLI {
     pub project: Option<Box<ScorchProject>>,
 }
 impl ScorchProjectCLI {
-    pub fn run_cli(&mut self) -> Result<(), String> {
+    pub fn run_repl(&mut self) -> Result<(), String> {
         loop {
             let mut input = String::new();
             
@@ -18,62 +19,82 @@ impl ScorchProjectCLI {
             
             std::io::stdin().read_line(&mut input).unwrap();
             
-            let input_vec: Vec<&str> = input.trim().split(" ").collect();
-            
-            match input_vec[0] {
-                "pull" => {
-                    for repos in &self.project.as_ref().unwrap().modules {
-                        let id = repos.id.clone();
-                        let url = repos.url.clone();
-                        let branch = repos.branch.clone();
-                        
-                        let result = force_update_repo(&id, &url, &branch);
-                        
-                        let Ok(repo_path) = result else {
-                            println!("Error caching repo: {:#?}", result);
-                            return Ok(());
-                        };
-                        println!("successfully updated repo {} from {} , locally at {}", id.clone(), url, repo_path)                        
-                    }
-                }
-                "help" => {
-                    println!("{}", "available commands:");
-                    println!("{}", "## <man>               :        A list of built-in functions                             ##".bright_green());
-                    println!("{}", "## <dir>               :        print the current directory.                             ##".bright_green());
-                    println!("{}", "## <l> 'path'          :        load a project from a file path.                         ##".bright_green());
-                    println!("{}", "## <r>                 :        run the currently loaded project.                        ##".bright_green());
-                    println!("{}", "## <create>            :        create a new project at 'dir/project-name.scproj'.'      ##".bright_green());
-                    println!("{}", "## <exit>              :        exit the cli.                                            ##".bright_green());
-                },
-                "l" => {
-                    if let ControlFlow::Break(_) = self.load_project(input_vec) {
-                        continue;
-                    }
-                }
-                "r" => {
-                    self.try_run_current_project();
-                }
-                "dir" => {
-                    
-                    let string = format!("current dir : {}\n preview package name : {}/{}", self.root, self.root, "my_project.scproj");
-                    println!("{}", string.green());
-                }
-                "create" => {
-                    
-                    self.create_new_project_cli();
-                },
-                "exit" => {
-                    return Ok(());
-                }
-                "clear" => {
-                    
-                }
-                _ => {
-                    println!("Unknown command: {}", input);
-                    continue;
-                }
+            if let Some(value) = self.try_command(input) {
+                return value;
             }
         }
+    }
+
+    pub fn try_command(&mut self, input: String) -> Option<Result<(), String>> {
+        let input_vec: Vec<&str> = input.trim().split(" ").collect();
+        let arg1 = input_vec[0];
+        
+        match arg1 {
+            "update" => {
+                self.try_load_project_from_dir();
+                if self.project.is_none() {
+                    println!("you must have a project loaded or be in the directory of a project to update & pull from module remotes");
+                    return Some(Ok(()));
+                }
+        
+                for repos in &self.project.as_ref().unwrap().modules {
+                    let id = repos.id.clone();
+                    let url = repos.url.clone();
+                    let branch = repos.branch.clone();
+            
+                    let result = force_update_repo(&id, &url, &branch);
+            
+                    let Ok(repo_path) = result else {
+                        println!("Error caching repo: {:#?}", result);
+                        return Some(Ok(()));
+                    };
+                    println!("successfully updated repo {} from {} , locally at {}", id.clone(), url, repo_path)                        
+                }
+            }
+            "help" => {
+                println!("{}", "available commands:");
+                println!("{}", "## <man>               :        A list of built-in functions                             ##".bright_green());
+                println!("{}", "## <dir>               :        print the current directory.                             ##".bright_green());
+                println!("{}", "## <l> 'path'          :        load a project from a file path.                         ##".bright_green());
+                println!("{}", "## <r>                 :        run the currently loaded project.                        ##".bright_green());
+                println!("{}", "## <create>            :        create a new project at 'dir/project-name.scproj'.'      ##".bright_green());
+                println!("{}", "## <exit>              :        exit the cli.                                            ##".bright_green());
+            },
+            "l" => {
+                self.load_project(input_vec);
+            }
+            "r" => {
+                self.try_load_project_from_dir();
+                self.try_run_current_project();
+            }
+            "dir" => {
+        
+                let string = format!("current dir : {}\n preview package name : {}/{}", self.root, self.root, "my_project.scproj");
+                println!("{}", string.green());
+            }
+            "create" => {
+        
+                self.create_new_project_cli();
+            },
+            "exit" => {
+                return Some(Ok(()));
+            }
+            "clear" => {
+                //scorch_lang::clear_screen();
+            }
+            _ => {
+                if arg1.ends_with(".scorch") {
+                    println!("running... {:?}", arg1);
+                    let path = Path::new(&arg1);
+                    let mut file = File::open(&path).expect("Unable to open file");
+                    let mut contents = String::new();
+                    file.read_to_string(&mut contents).expect("Unable to read file");
+                    println!("{:?}", scorch_lang::run(&contents));
+                }
+                println!("unknown argument: {}. please try again.", arg1);
+            }
+        }
+        None
     }
     
     fn load_project(&mut self, input_vec: Vec<&str>) -> ControlFlow<()> {

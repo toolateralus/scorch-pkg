@@ -11,8 +11,6 @@ chmod +x INSTALL.sh
 ./INSTALL.sh
 ```
 
-###### then, open a terminal at a desired project location, in our example we'll use `source/repos/scorch_projects`
-
 ###### run the `scc` command with no args to start the repl. on first launch / after source changes, it will rebuild. 
 
 ###### once it's built, we can type `help` to see a list of commands. 

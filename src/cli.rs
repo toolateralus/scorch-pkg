@@ -1,7 +1,8 @@
-use std::{io::Read, collections::HashMap, ops::ControlFlow};
+use std::{io::Read, ops::ControlFlow, fs::File};
 
 use crate::{json::{ScorchProject, FILE_EXTENSION}, git::cache_repo};
 use colored::Colorize;
+use indexmap::IndexMap;
 use std::fs;
 use std::path::Path;
 pub struct ScorchProjectCLI {
@@ -142,7 +143,7 @@ impl ScorchProjectCLI {
             println!("included files: {:?}", proj.includes);
             println!("git modules: {:?}", proj.modules);
             
-            let mut module_cache = HashMap::new();
+            let mut module_cache = IndexMap::new();
             
             for module in &proj.modules {
                 let id = module.id.clone();
@@ -161,23 +162,18 @@ impl ScorchProjectCLI {
                 module_cache.insert(id, scorch_files);
             }
             
-            let mut module_files = Vec::new();
-            for module_path in &proj.includes {
-                match std::fs::File::open(format!("{}/{}", self.root, module_path)) {
-                    Ok(mut module_file) => {
-                        let mut module_buffer = String::new();
-                        match module_file.read_to_string(&mut module_buffer) {
-                            Ok(_) => module_files.push(module_buffer),
-                            Err(e) => {
-                                println!("Error reading module file: {:#?}", e);
-                                return;
-                            }
-                        }
-                    },
-                    Err(e) => {
-                        println!("Error opening module file: {:#?}", e);
-                        return;
+            for include in &proj.includes {
+                let path = format!("{}/{}", self.root, include);
+                let path = std::path::Path::new(&path);
+                if path.is_dir() {
+                    for entry in std::fs::read_dir(&path).unwrap() {
+                        let entry = entry.unwrap();
+                        let content = Self::read_file_content(&entry.path());
+                        module_cache.insert(entry.file_name().to_str().unwrap().to_string(), vec![content]);
                     }
+                } else {
+                    let content = Self::read_file_content(&path);
+                    module_cache.insert(include.clone(), vec![content]);
                 }
             }
     
@@ -193,9 +189,9 @@ impl ScorchProjectCLI {
                 return;
             };
     
-            let concatenated_code = format!("{}\n{}", module_files.join("\n"), main_buffer);
-            
-            let result = scorch_lang::run(&concatenated_code);
+            module_cache.insert("main".to_string(), vec![main_buffer]);
+    
+            let result = scorch_lang::run_with_modules(module_cache);
     
             let Ok(return_value) = result else {
                 println!("Error running project: {:#?}", result);
@@ -210,6 +206,12 @@ impl ScorchProjectCLI {
             self.try_run_current_project();
             println!("No project loaded.\nsearching current dir & running first found .scproj\noptionally, use 'l' command to load a project");
         }
+    }
+    fn read_file_content(path: &Path) -> String {
+        let mut file = File::open(path).expect("Unable to open file");
+        let mut content = String::new();
+        file.read_to_string(&mut content).expect("Unable to read file");
+        content
     }
     
     pub fn try_load_project_from_dir(&mut self) {

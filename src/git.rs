@@ -74,22 +74,21 @@ pub fn checkout_branch(repo: &Repository, branch: &str) -> Result<(), Error> {
 }
 
 mod test {
-    use std::{path::Path, fs};
-    use super::*;
+       
     #[test]
     pub fn test_cache_repo() {
         let id = "scorch-doc";
         let url = "https://github.com/toolateralus/scorch-doc.git";
         let branch = "main";
         
-        let result = cache_repo(id, url, branch);
+        let result = super::cache_repo(id, url, branch);
         
         match &result {
             Ok(path) => {
-                let path = Path::new(path);
+                let path = std::path::Path::new(path);
                 assert!(path.exists(), "git repo cache test failed, path does not exist");
                 assert!(path.is_dir(), "git repo cache test failed, path is not a directory");
-                fs::remove_dir_all(path).expect("git repo cache test failed, failed to remove directory");
+                std::fs::remove_dir_all(path).expect("git repo cache test failed, failed to remove directory");
             },
             Err(_) => {},
         }

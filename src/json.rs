@@ -73,8 +73,9 @@ mod tests_json {
         assert_eq!(project.module_paths, loaded_project.module_paths);
         assert_eq!(project.config, loaded_project.config);
         
-        
-        fs::remove_file(path.as_str());
+        let Ok(_) =fs::remove_file(path.as_str()) else {
+            panic!("failed to remove test project file");
+        };
     }
 }
 

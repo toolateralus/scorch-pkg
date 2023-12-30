@@ -1,7 +1,7 @@
-use std::{io::Read, collections::HashMap, ops::ControlFlow, os::unix::io, process::Command};
+use std::{io::Read, collections::HashMap, ops::ControlFlow, process::Command};
 
 use crate::json::{ScorchProject, FILE_EXTENSION};
-use colored::{ColoredString, Colorize};
+use colored::Colorize;
 pub struct ScorchProjectCLI {
     pub root : String,
     pub project: Option<Box<ScorchProject>>,
